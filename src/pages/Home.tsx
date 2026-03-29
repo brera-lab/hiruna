@@ -312,8 +312,8 @@ function TimelineWidget({
           <div className="flex h-5 rounded-full overflow-hidden bg-gray-100 gap-px">
             {timeline.map((slot, i) => {
               const widthPct = ((slot.endMin - slot.startMin) / totalSpan) * 100;
-              let color = '#d1d5db'; // gray for fixed / completed
-              if (!slot.completed && slot.kind === 'task' && slot.task?.area) {
+              let color = '#d1d5db'; // gray for fixed blocks
+              if (slot.kind === 'task' && slot.task?.area) {
                 color = AREA_HEX[slot.task.area] ?? '#6366f1';
               }
               return (
@@ -322,7 +322,7 @@ function TimelineWidget({
                   style={{
                     width: `${widthPct}%`,
                     backgroundColor: color,
-                    opacity: slot.completed ? 0.3 : slot.kind === 'fixed' ? 0.5 : 0.85,
+                    opacity: slot.kind === 'fixed' ? 0.5 : 0.85,
                   }}
                   className="h-full flex-shrink-0"
                   title={slot.task?.title ?? slot.fixed?.title}
@@ -349,21 +349,20 @@ function TimelineWidget({
           <div className="flex flex-col">
             {timeline.map((slot, i) => {
               const isFixed = slot.kind === 'fixed';
-              const isDone = slot.completed;
               const isOverdue = slot.overdue;
-              const color = isDone || isFixed
+              const color = isFixed
                 ? '#9ca3af'
                 : slot.task?.area ? AREA_HEX[slot.task.area] : '#6366f1';
               const icon = isFixed
                 ? FIXED_BLOCK_TYPE_INFO[slot.fixed?.type ?? 'other'].icon
-                : isDone ? '✓' : '';
+                : '';
               const title = slot.task?.title ?? slot.fixed?.title ?? '';
               const duration = slot.endMin - slot.startMin;
 
               return (
                 <div
                   key={i}
-                  className={`flex items-center gap-2 px-3 py-2 border-t border-gray-50 ${isDone ? 'opacity-40' : ''}`}
+                  className="flex items-center gap-2 px-3 py-2 border-t border-gray-50"
                 >
                   {/* Time + color dot */}
                   <div className="flex-shrink-0 w-20 text-right">
@@ -376,7 +375,7 @@ function TimelineWidget({
                     style={{ backgroundColor: color }}
                   />
                   <div className="flex-1 min-w-0">
-                    <span className={`text-xs font-medium ${isDone ? 'line-through text-gray-400' : isFixed ? 'text-gray-500' : 'text-gray-800'}`}>
+                    <span className={`text-xs font-medium ${isFixed ? 'text-gray-500' : 'text-gray-800'}`}>
                       {icon} {title}
                     </span>
                     {isOverdue && (
@@ -392,17 +391,9 @@ function TimelineWidget({
                   {isFixed && (
                     <button
                       onClick={() => toggleFixedBlockCompletion(slot.fixed!.id)}
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                        isDone ? 'bg-gray-400 border-gray-400' : 'border-gray-300 hover:border-gray-400'
-                      }`}
-                      title={isDone ? '未完了に戻す' : '済みにする'}
-                    >
-                      {isDone && (
-                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </button>
+                      className="w-5 h-5 rounded-full border-2 border-gray-300 hover:border-gray-400 flex items-center justify-center flex-shrink-0 transition-colors"
+                      title="済みにする"
+                    />
                   )}
                 </div>
               );
@@ -629,7 +620,7 @@ export default function Home({ store }: Props) {
   const progressPct = availableMin > 0 ? Math.min((totalEstimated / availableMin) * 100, 100) : 0;
 
   function getBlockTasks(block: TimeBlock): Task[] {
-    return todayTasks.filter((t) => t.timeBlock === block);
+    return todayTasks.filter((t) => t.timeBlock === block && !isTaskCompletedToday(t));
   }
 
   const handleDragEnd = useCallback(
@@ -646,7 +637,7 @@ export default function Home({ store }: Props) {
     [todayTasks],
   );
 
-  const unassigned = todayTasks.filter((t) => !t.timeBlock);
+  const unassigned = todayTasks.filter((t) => !t.timeBlock && !isTaskCompletedToday(t));
 
   // Milestone cards
   const msByArea = state.goals
